@@ -39,10 +39,34 @@ class GridAdapter(context: Context, private val dataList: MutableList<GridData>,
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MyBaseViewHolder {
         return when (viewType){
-            VIEWTYPE_SIDE_HEADER ->
-                HeaderViewHolder(DataBindingUtil.inflate(layoutInflater, R.layout.header_item_grid, parent, false))
-            VIEWTYPE_ITEM ->
-                ItemViewHolder(DataBindingUtil.inflate(layoutInflater, R.layout.content_item_grid, parent, false))
+            VIEWTYPE_SIDE_HEADER -> {
+                val holder = HeaderViewHolder(
+                    DataBindingUtil.inflate(
+                        layoutInflater,
+                        R.layout.header_item_grid,
+                        parent,
+                        false
+                    )
+                )
+//                holder.binding.root.setOnTouchListener { v, event ->
+//                    if (event.action == MotionEvent.ACTION_DOWN) {
+//                        onStartDragListener.onStartDrag(holder)
+//                    }
+//                    false
+//                }
+                holder
+            }
+            VIEWTYPE_ITEM -> {
+                var holder = ItemViewHolder(
+                    DataBindingUtil.inflate(
+                        layoutInflater,
+                        R.layout.content_item_grid,
+                        parent,
+                        false
+                    )
+                )
+                holder
+            }
             else ->
                 throw IllegalStateException("Item View Type is illegal.")
         }
@@ -75,12 +99,6 @@ class GridAdapter(context: Context, private val dataList: MutableList<GridData>,
             }
             is ContentItemGridBinding -> {
                 holderMy.binding.item = data
-                holderMy.binding.textView.setOnTouchListener { v, event ->
-                    if (event.action == MotionEvent.ACTION_DOWN) {
-                        onStartDragListener.onStartDrag(holderMy)
-                    }
-                    false
-                }
             }
             else -> {
                 throw IllegalStateException("Holder is Illegal")
@@ -88,19 +106,43 @@ class GridAdapter(context: Context, private val dataList: MutableList<GridData>,
         }
     }
 
+
     override fun onItemMove(fromPosition: Int, toPosition: Int): Boolean {
         Log.v("ON_ITEM_MOVE", "Log position$fromPosition $toPosition")
         if (fromPosition < dataList.size && toPosition < dataList.size ) {
             if (fromPosition < toPosition) {
-                for (i in fromPosition until toPosition) {
-                    Collections.swap(dataList, i, i + 1)
+                val recurRowNum = toPosition/colSpan - fromPosition/colSpan
+                for (i in 0 until recurRowNum) {
+                    // 縦
+                    for (l in fromPosition until fromPosition + colSpan ) {
+                        // 横
+                        val from = l + (colSpan * i)
+                        val to   = from + colSpan
+                        Collections.swap(dataList, from, to)
+                    }
                 }
+//                for (i in fromPosition until toPosition) {
+//                    Collections.swap(dataList, i, i + 1)
+//                }
             } else {
-                for (i in fromPosition downTo toPosition + 1) {
-                    Collections.swap(dataList, i, i - 1)
+                for (i in fromPosition/colSpan downTo toPosition/colSpan) {
+                    // 縦
+                    for (l in fromPosition downTo fromPosition - colSpan -1) {
+                        // 横
+                        Collections.swap(dataList, l - (colSpan * i), l - (colSpan * i) - colSpan)
+                    }
                 }
+//                for (i in fromPosition downTo toPosition + 1) {
+//                    Collections.swap(dataList, i, i - 1)
+//                }
             }
-            notifyItemMoved(fromPosition, toPosition)
+//            notifyItemRangeChanged(fromPosition, toPosition)
+            for (i in fromPosition until toPosition + colSpan) {
+                notifyItemChanged(i)
+            }
+
+//            notifyItemRangeChanged(fromPosition, toPosition + colSpan - fromPosition)
+
         }
         return true
     }
@@ -124,7 +166,7 @@ class GridAdapter(context: Context, private val dataList: MutableList<GridData>,
             recyclerView: RecyclerView,
             viewHolder: ViewHolder
         ): Int {
-            val dragFlags = ItemTouchHelper.UP or ItemTouchHelper.DOWN
+            val dragFlags = ItemTouchHelper.UP or ItemTouchHelper.DOWN // or ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
             val swipeFlags = ItemTouchHelper.START or ItemTouchHelper.END
             return makeMovementFlags(
                 dragFlags,
